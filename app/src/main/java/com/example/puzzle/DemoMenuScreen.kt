@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 fun DemoMenuScreen(
     onComposeClick: () -> Unit,
     onLab2Click: () -> Unit,
+    onLab3Click: () -> Unit,
     onClassicClick: () -> Unit
 ) {
     Column(
@@ -44,6 +45,13 @@ fun DemoMenuScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Laboratory 2")
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = onLab3Click,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Laboratory 3")
         }
         Spacer(modifier = Modifier.height(12.dp))
         Button(

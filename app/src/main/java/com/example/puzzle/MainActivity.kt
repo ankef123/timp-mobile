@@ -18,6 +18,7 @@ class MainActivity : ComponentActivity() {
         MENU,
         COMPOSE,
         LAB2,
+        LAB3,
         SECOND
     }
 
@@ -40,12 +41,14 @@ class MainActivity : ComponentActivity() {
                     Screen.MENU -> DemoMenuScreen(
                         onComposeClick = { screen = Screen.COMPOSE },
                         onLab2Click = { screen = Screen.LAB2 },
+                        onLab3Click = { screen = Screen.LAB3 },
                         onClassicClick = {
                             startActivity(Intent(this, ClassicActivity::class.java))
                         }
                     )
                     Screen.COMPOSE -> FirstScreen()
                     Screen.LAB2 -> Lab2Screen()
+                    Screen.LAB3 -> Lab3Screen()
                     Screen.SECOND -> SecondScreen()
                 }
             }
