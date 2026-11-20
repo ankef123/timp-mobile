@@ -1,6 +1,7 @@
 package com.example.puzzle
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -20,6 +23,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -29,6 +33,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun Lab3Screen() {
     var activeIndex by rememberSaveable { mutableStateOf(0) }
+    var switchCount by rememberSaveable { mutableStateOf(3) }
     var autoMode by rememberSaveable { mutableStateOf(false) }
     var isStarted by rememberSaveable { mutableStateOf(true) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -45,56 +50,67 @@ fun Lab3Screen() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(autoMode, isStarted) {
-        if (autoMode && isStarted) {
-            while (true) {
-                delay(1_000)
-                activeIndex = (activeIndex + 1) % 3
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        val density = LocalDensity.current
+        val maxHeightDp = with(density) { constraints.maxHeight.toDp() }
+        val rowCapacity =
+            ((maxHeightDp.value - 220f) / 56f).toInt().coerceAtLeast(3)
+        val switchCapacity = (rowCapacity / 3 * 3).coerceAtLeast(3)
+
+        LaunchedEffect(autoMode, isStarted, switchCount) {
+            if (autoMode && isStarted) {
+                while (true) {
+                    delay(1_000)
+                    val nextIndex = (activeIndex + 1) % switchCount
+                    if (nextIndex == 0 && switchCount < switchCapacity) {
+                        switchCount = (switchCount + 3).coerceAtMost(switchCapacity)
+                    }
+                    activeIndex = nextIndex
+                }
             }
         }
-    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Лабораторная работа №3")
-        Text("Переключатели и автоматическое переключение")
-        Spacer(modifier = Modifier.height(8.dp))
-        StepSwitch(
-            label = "1",
-            checked = activeIndex == 0,
-            enabled = !autoMode && activeIndex == 0,
-            onCheckedChange = { activeIndex = (activeIndex + 1) % 3 }
-        )
-        StepSwitch(
-            label = "2",
-            checked = activeIndex == 1,
-            enabled = !autoMode && activeIndex == 1,
-            onCheckedChange = { activeIndex = (activeIndex + 1) % 3 }
-        )
-        StepSwitch(
-            label = "3",
-            checked = activeIndex == 2,
-            enabled = !autoMode && activeIndex == 2,
-            onCheckedChange = { activeIndex = (activeIndex + 1) % 3 }
-        )
-        HorizontalDivider()
-        StepSwitch(
-            label = "4 — автоматический режим",
-            checked = autoMode,
-            enabled = true,
-            onCheckedChange = { autoMode = it }
-        )
-        Text(
-            text = if (autoMode) {
-                "Автоматический переход: примерно каждые 1 сек."
-            } else {
-                "Ручной режим: активен шаг ${activeIndex + 1}"
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Лабораторная работа №3")
+            Text("Переключатели и автоматическое переключение")
+            Spacer(modifier = Modifier.height(8.dp))
+            repeat(switchCount) { index ->
+                StepSwitch(
+                    label = (index + 1).toString(),
+                    checked = activeIndex == index,
+                    enabled = !autoMode && activeIndex == index,
+                    onCheckedChange = {
+                        val nextIndex = (activeIndex + 1) % switchCount
+                        if (nextIndex == 0 && switchCount < switchCapacity) {
+                            switchCount = (switchCount + 3).coerceAtMost(switchCapacity)
+                        }
+                        activeIndex = nextIndex
+                    }
+                )
             }
-        )
+            HorizontalDivider()
+            StepSwitch(
+                label = "Автоматический режим",
+                checked = autoMode,
+                enabled = true,
+                onCheckedChange = { autoMode = it }
+            )
+            Text(
+                text = if (autoMode) {
+                    "Автоматический переход: примерно каждые 1 сек."
+                } else {
+                    "Ручной режим: активен шаг ${activeIndex + 1}"
+                }
+            )
+        }
     }
 }
 
