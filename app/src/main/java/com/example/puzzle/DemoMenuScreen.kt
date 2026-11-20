@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun DemoMenuScreen(
     onComposeClick: () -> Unit,
+    onLab2Click: () -> Unit,
     onClassicClick: () -> Unit
 ) {
     Column(
@@ -36,6 +37,13 @@ fun DemoMenuScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Jetpack Compose")
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = onLab2Click,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Laboratory 2")
         }
         Spacer(modifier = Modifier.height(12.dp))
         Button(

@@ -17,6 +17,7 @@ class MainActivity : ComponentActivity() {
     private enum class Screen {
         MENU,
         COMPOSE,
+        LAB2,
         SECOND
     }
 
@@ -38,11 +39,13 @@ class MainActivity : ComponentActivity() {
                 when (screen) {
                     Screen.MENU -> DemoMenuScreen(
                         onComposeClick = { screen = Screen.COMPOSE },
+                        onLab2Click = { screen = Screen.LAB2 },
                         onClassicClick = {
                             startActivity(Intent(this, ClassicActivity::class.java))
                         }
                     )
                     Screen.COMPOSE -> FirstScreen()
+                    Screen.LAB2 -> Lab2Screen()
                     Screen.SECOND -> SecondScreen()
                 }
             }
