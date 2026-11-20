@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity() {
         COMPOSE,
         LAB2,
         LAB3,
+        LAB4,
         SECOND
     }
 
@@ -42,6 +43,7 @@ class MainActivity : ComponentActivity() {
                         onComposeClick = { screen = Screen.COMPOSE },
                         onLab2Click = { screen = Screen.LAB2 },
                         onLab3Click = { screen = Screen.LAB3 },
+                        onLab4Click = { screen = Screen.LAB4 },
                         onClassicClick = {
                             startActivity(Intent(this, ClassicActivity::class.java))
                         }
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
                     Screen.COMPOSE -> FirstScreen()
                     Screen.LAB2 -> Lab2Screen()
                     Screen.LAB3 -> Lab3Screen()
+                    Screen.LAB4 -> Lab4Screen()
                     Screen.SECOND -> SecondScreen()
                 }
             }

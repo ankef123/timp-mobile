@@ -19,6 +19,7 @@ fun DemoMenuScreen(
     onComposeClick: () -> Unit,
     onLab2Click: () -> Unit,
     onLab3Click: () -> Unit,
+    onLab4Click: () -> Unit,
     onClassicClick: () -> Unit
 ) {
     Column(
@@ -52,6 +53,13 @@ fun DemoMenuScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Laboratory 3")
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = onLab4Click,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Laboratory 4")
         }
         Spacer(modifier = Modifier.height(12.dp))
         Button(
