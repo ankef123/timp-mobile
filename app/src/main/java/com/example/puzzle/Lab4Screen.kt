@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
@@ -32,14 +33,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 private val paddingSides = listOf("left", "top", "right", "bottom")
@@ -74,9 +81,17 @@ fun Lab4Screen() {
             .fillMaxSize()
     ) {
         val density = LocalDensity.current
+        val textMeasurer = rememberTextMeasurer()
+        val labelStyle = LocalTextStyle.current
         val screenPadding = 32.dp
+        val frameContentWidth = (maxWidth - screenPadding).coerceAtLeast(0.dp)
         val contentWidthPx = with(density) {
-            (maxWidth - screenPadding).coerceAtLeast(0.dp).roundToPx()
+            frameContentWidth.roundToPx()
+        }
+        val labelWidthPx = with(density) {
+            (frameContentWidth - leftPadding.dp - rightPadding.dp)
+                .coerceAtLeast(0.dp)
+                .roundToPx()
         }
         val sizesMatchCurrentWidth =
             headerSize.width == contentWidthPx &&
@@ -92,16 +107,68 @@ fun Lab4Screen() {
         val measuredMaxFrameHeight =
             (maxHeight - measuredFixedHeight - contentSpacing - screenPadding)
                 .coerceIn(64.dp, 240.dp)
-        val maxFrameHeight = if (sizesMatchCurrentWidth) measuredMaxFrameHeight else 64.dp
-        val boundedFrameHeight = frameHeight.dp.coerceIn(64.dp, maxFrameHeight)
+        val maxFrameHeight = if (sizesMatchCurrentWidth) {
+            measuredMaxFrameHeight.value.toInt().coerceAtLeast(64).dp
+        } else {
+            64.dp
+        }
+        val requiredFrameHeight = calculateRequiredFrameHeight(
+            labelCount = labelCount,
+            labelWidthPx = labelWidthPx,
+            topPadding = topPadding,
+            bottomPadding = bottomPadding,
+            textMeasurer = textMeasurer,
+            textStyle = labelStyle,
+            density = density
+        )
+        val minimumFrameHeight = requiredFrameHeight.coerceAtMost(maxFrameHeight.value.toInt()).dp
+        val boundedFrameHeight = frameHeight.dp.coerceIn(minimumFrameHeight, maxFrameHeight)
         val sliderValue = boundedFrameHeight.value
         val sliderMax = maxFrameHeight.value
+        val nextLabelHeight = calculateRequiredFrameHeight(
+            labelCount = labelCount + 1,
+            labelWidthPx = labelWidthPx,
+            topPadding = topPadding,
+            bottomPadding = bottomPadding,
+            textMeasurer = textMeasurer,
+            textStyle = labelStyle,
+            density = density
+        )
+        val canAddLabel = labelCount < 20 && nextLabelHeight <= maxFrameHeight.value
+        val proposedPadding = selectedPadding + 4
+        val proposedPaddingValues = paddingValuesForSide(
+            selectedSide,
+            proposedPadding,
+            leftPadding,
+            topPadding,
+            rightPadding,
+            bottomPadding
+        )
+        val proposedPaddingHeight = calculateRequiredFrameHeight(
+            labelCount = labelCount,
+            labelWidthPx = with(density) {
+                (frameContentWidth - proposedPaddingValues.left.dp -
+                    proposedPaddingValues.right.dp).coerceAtLeast(0.dp).roundToPx()
+            },
+            topPadding = proposedPaddingValues.top,
+            bottomPadding = proposedPaddingValues.bottom,
+            textMeasurer = textMeasurer,
+            textStyle = labelStyle,
+            density = density
+        )
+        val canIncreaseSelectedPadding =
+            selectedPadding < 64 && proposedPaddingHeight <= maxFrameHeight.value
 
-        LaunchedEffect(maxFrameHeight) {
-            val maximumHeight = maxFrameHeight.value.roundToInt()
-            if (frameHeight > maximumHeight) {
-                frameHeight = maximumHeight.coerceAtLeast(64)
-            }
+        LaunchedEffect(
+            maxFrameHeight,
+            minimumFrameHeight,
+            requiredFrameHeight,
+            labelWidthPx
+        ) {
+            frameHeight = frameHeight.coerceIn(
+                minimumFrameHeight.value.roundToInt(),
+                maxFrameHeight.value.roundToInt()
+            )
         }
 
         Column(
@@ -127,7 +194,8 @@ fun Lab4Screen() {
                 rightPadding = rightPadding.dp,
                 bottomPadding = bottomPadding.dp,
                 hasShadow = hasShadow,
-                cornerRadius = cornerRadius.dp
+                cornerRadius = cornerRadius.dp,
+                contentScrollable = requiredFrameHeight > maxFrameHeight.value
             )
             Column(
                 modifier = Modifier
@@ -138,9 +206,17 @@ fun Lab4Screen() {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Button(
-                    onClick = { if (labelCount < 20) labelCount += 1 },
+                    onClick = {
+                        if (canAddLabel) {
+                            labelCount += 1
+                            frameHeight = maxOf(
+                                boundedFrameHeight.value.roundToInt(),
+                                nextLabelHeight
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = labelCount < 20
+                    enabled = canAddLabel
                 ) {
                     Text("Добавить Label")
                 }
@@ -171,36 +247,51 @@ fun Lab4Screen() {
                         }
                     }
                     OutlinedButton(
+                        enabled = selectedPadding > 0,
                         onClick = {
-                            changeSelectedPadding(
-                                selectedSide = selectedSide,
-                                delta = -4,
-                                left = leftPadding,
-                                top = topPadding,
-                                right = rightPadding,
-                                bottom = bottomPadding,
-                                setLeft = { leftPadding = it },
-                                setTop = { topPadding = it },
-                                setRight = { rightPadding = it },
-                                setBottom = { bottomPadding = it }
+                            val newPadding = (selectedPadding - 4).coerceAtLeast(0)
+                            val values = paddingValuesForSide(
+                                selectedSide,
+                                newPadding,
+                                leftPadding,
+                                topPadding,
+                                rightPadding,
+                                bottomPadding
+                            )
+                            leftPadding = values.left
+                            topPadding = values.top
+                            rightPadding = values.right
+                            bottomPadding = values.bottom
+                            val newRequiredHeight = calculateRequiredFrameHeight(
+                                labelCount = labelCount,
+                                labelWidthPx = with(density) {
+                                    (frameContentWidth - values.left.dp -
+                                        values.right.dp).coerceAtLeast(0.dp).roundToPx()
+                                },
+                                topPadding = values.top,
+                                bottomPadding = values.bottom,
+                                textMeasurer = textMeasurer,
+                                textStyle = labelStyle,
+                                density = density
+                            )
+                            frameHeight = maxOf(
+                                boundedFrameHeight.value.roundToInt(),
+                                newRequiredHeight
                             )
                         }
                     ) {
                         Text("−")
                     }
                     OutlinedButton(
+                        enabled = canIncreaseSelectedPadding,
                         onClick = {
-                            changeSelectedPadding(
-                                selectedSide = selectedSide,
-                                delta = 4,
-                                left = leftPadding,
-                                top = topPadding,
-                                right = rightPadding,
-                                bottom = bottomPadding,
-                                setLeft = { leftPadding = it },
-                                setTop = { topPadding = it },
-                                setRight = { rightPadding = it },
-                                setBottom = { bottomPadding = it }
+                            leftPadding = proposedPaddingValues.left
+                            topPadding = proposedPaddingValues.top
+                            rightPadding = proposedPaddingValues.right
+                            bottomPadding = proposedPaddingValues.bottom
+                            frameHeight = maxOf(
+                                boundedFrameHeight.value.roundToInt(),
+                                proposedPaddingHeight
                             )
                         }
                     ) {
@@ -214,9 +305,14 @@ fun Lab4Screen() {
                 )
                 Slider(
                     value = sliderValue,
-                    onValueChange = { frameHeight = it.roundToInt().coerceAtLeast(64) },
-                    valueRange = 64f..sliderMax,
-                    enabled = sliderMax > 64f,
+                    onValueChange = {
+                        frameHeight = it.roundToInt().coerceIn(
+                            minimumFrameHeight.value.roundToInt(),
+                            sliderMax.roundToInt()
+                        )
+                    },
+                    valueRange = minimumFrameHeight.value..sliderMax,
+                    enabled = sliderMax > minimumFrameHeight.value,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -249,25 +345,56 @@ fun Lab4Screen() {
     }
 }
 
-private fun changeSelectedPadding(
+private fun paddingValuesForSide(
     selectedSide: String,
-    delta: Int,
+    selectedValue: Int,
     left: Int,
     top: Int,
     right: Int,
-    bottom: Int,
-    setLeft: (Int) -> Unit,
-    setTop: (Int) -> Unit,
-    setRight: (Int) -> Unit,
-    setBottom: (Int) -> Unit
-) {
-    val (current, setter) = when (selectedSide) {
-        "left" -> left to setLeft
-        "top" -> top to setTop
-        "right" -> right to setRight
-        else -> bottom to setBottom
+    bottom: Int
+): FramePadding = when (selectedSide) {
+    "left" -> FramePadding(selectedValue, top, right, bottom)
+    "top" -> FramePadding(left, selectedValue, right, bottom)
+    "right" -> FramePadding(left, top, selectedValue, bottom)
+    else -> FramePadding(left, top, right, selectedValue)
+}
+
+private data class FramePadding(
+    val left: Int,
+    val top: Int,
+    val right: Int,
+    val bottom: Int
+)
+
+private fun calculateRequiredFrameHeight(
+    labelCount: Int,
+    labelWidthPx: Int,
+    topPadding: Int,
+    bottomPadding: Int,
+    textMeasurer: TextMeasurer,
+    textStyle: TextStyle,
+    density: Density
+): Int {
+    if (labelCount == 0) return 64
+
+    val labelsHeightPx = (1..labelCount).sumOf { index ->
+        textMeasurer.measure(
+            text = "Label $index",
+            style = textStyle,
+            constraints = Constraints(maxWidth = labelWidthPx)
+        ).size.height
     }
-    setter((current + delta).coerceIn(0, 64))
+    val verticalSpacingPx = with(density) { 6.dp.roundToPx() }
+    val topPaddingPx = with(density) { topPadding.dp.roundToPx() }
+    val bottomPaddingPx = with(density) { bottomPadding.dp.roundToPx() }
+    val requiredHeightPx = labelsHeightPx +
+        verticalSpacingPx * (labelCount - 1) +
+        topPaddingPx +
+        bottomPaddingPx
+
+    return with(density) {
+        ceil(requiredHeightPx.toDp().value).toInt().coerceAtLeast(64)
+    }
 }
 
 @Composable
@@ -279,7 +406,8 @@ private fun FrameContainer(
     rightPadding: Dp,
     bottomPadding: Dp,
     hasShadow: Boolean,
-    cornerRadius: Dp
+    cornerRadius: Dp,
+    contentScrollable: Boolean
 ) {
     val shape = RoundedCornerShape(cornerRadius)
     Surface(
@@ -294,7 +422,13 @@ private fun FrameContainer(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .then(
+                    if (contentScrollable) {
+                        Modifier.verticalScroll(rememberScrollState())
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(
                     start = leftPadding,
                     top = topPadding,
